@@ -16,7 +16,12 @@ module.exports = {
     checkAndParseToken,
     checkAndParseMessage,
     checkFormData,
-    isDebug
+    isDebug,
+    isAuth
+}
+
+function isAuth () {
+    return config.auth;
 }
 
 function isDebug () {
@@ -59,26 +64,49 @@ function parseMsgd(obj, callback) {
               'channel': obj.channel};
 
     //Parse data
-    if(mExtra.fport>0 ){
+    if(mExtra.fport){
         var mType = mExtra.fport.toString();
         mongoMap.findLast({'type': type}).then(function(doc) {
             // console.log('docs : ' + typeof doc);
-            var mInfo = getTypeData(mData,doc);
-            
-            if(mInfo){
-                var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
-                // console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
-                msg.information=mInfo;
-                //Save message to mongo database
-                saveMsgToDB(msg);
-
-                return callback(null, msg);
+            if(doc) {
+                var mInfo = getTypeData(mData,doc);
+                if (debug) {
+                    console.log(new Date() + 'Information : ' + JSON.stringify(mInfo));
+                }
+                
+                if(mInfo){
+                    var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
+                    // console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
+                    msg.information=mInfo;
+                    
+                    if (debug) {
+                        console.log(new Date() + 'parseMsgd message : ' + JSON.stringify(msg));
+                    }
+                    return callback(null, msg);
+                } else {
+                    if (debug) {
+                        console.log(new Date() + 'parseMsgd info is not exist');
+                    }
+                    return callback({"error": "Information is not exist"});
+                }
             } else {
-                return callback('parse fail');
+                if (debug) {
+                    console.log(new Date() + 'No map for type '+ type);
+                }
+                return callback({"error" : "No map of type " + type});
             }
+            
         }, function(reason) {
-            return callback(reason);
+            if (debug) {
+                console.log(new Date() + 'parseMsgd findLast err : ' + reason);
+            }
+            return callback({"error": reason});
         });
+    } else {
+        if (debug) {
+            console.log(new Date() + 'parseMsgd fport is not exist');
+        }
+        return callback({"error": "fport is not exist"});
     }
 }
 
@@ -161,9 +189,9 @@ function getType(p) {
 
 function saveMsgToDB (msg) {
     mongoDevice.create(msg).then(function(docs) {
-        console.log('docs : ' + JSON.stringify(docs));
+        console.log('saveMsgToDB docs : ' + JSON.stringify(docs));
     }, function(reason) {
-        console.log('err : ' + reason);
+        console.log('saveMsgToDB err : ' + reason);
     });
 }
 
@@ -309,9 +337,9 @@ function checkAndParseMessage (message, callback) {
         // console.log('results[1] : ' + JSON.stringify(results[1]));
         if (results[0].length === 0) {
             //If no same data
-            if (debug) {
-                console.log('No same data, return publish message');
-            }
+            console.log('No same data, return publish message');
+            //Save message to mongo database
+            saveMsgToDB(results[1]);
             return callback(null, results[1]);
         } else if (results[0].length === 1){
             //If has same data then check timestamp
@@ -319,14 +347,12 @@ function checkAndParseMessage (message, callback) {
             var ts2 = results[1].timestamp;
             // If over ond day to forward data
             if (Math.abs(ts1 -ts2) > 86400) {
-                if (debug) {
-                    console.log('Has same data (mac,frameCnt) but timestamp is different return publish message');
-                }
+                console.log('Has same data (mac,frameCnt) but timestamp is different return publish message');
+                //Save message to mongo database
+                saveMsgToDB(results[1]);
                 return callback(null, results[1]);
             } else {
-                if (debug) {
-                    console.log('Has same data');
-                }
+                console.log('Has same data to drop message');
                 return callback({
                     "responseCode" : '401',
                     "responseMsg" : 'Has same data'

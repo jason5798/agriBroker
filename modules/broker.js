@@ -3,6 +3,7 @@ var util = require('./util.js');
 var mysqlTool = require('./mysqlTool.js');
 var mongoMap = require('./mongoMap.js');
 var debug = util.isDebug();
+var isAuth = util.isAuth();
 
 var ascoltatore = {
   //using ascoltatore
@@ -33,7 +34,7 @@ var authenticate = function(client, username, password, callback) {
 var authorizePublish = function(client, topic, payload, callback) {
     if (debug) {
       console.log('authorizePublish--------' + new Date()); 
-      console.log('user : ' +  client.user);
+      console.log(' ' +  client.user);
       console.log('topic : ' +  topic);
       console.log('authorizePublish payload : ' +  payload.toString('utf8'));
     }  
@@ -41,7 +42,7 @@ var authorizePublish = function(client, topic, payload, callback) {
     // example topic : GIOT-GW/DL/00001C497BC0C094
     var arr = topic.split('/');
     // Verify
-    if (arr.length !== 2) {
+    if (arr.length !== 3) {
       callback(null, false);
       return;
     }
@@ -82,11 +83,14 @@ var authorizeForward = function(client, packet, callback) {
     var msg = packet.payload.toString('utf8');
     if (arr[1].includes('UL')  ) { // From Lora message
       util.checkAndParseMessage(msg, function(err, message){
+        
+        console.log('checkAndParseMessage ------------------------------------------------');
+        
         if(err) {
-          console.log('Drop repeat message');
+          console.log('??? Drop message : ' + JSON.stringify(err));
           callback(null, null);
         } else {
-          console.log('Publish parse message');
+          console.log('*** Publish parse message');
           packet.payload = JSON.stringify(message);
           callback(null, true);
         }
@@ -132,10 +136,13 @@ server.on('delivered', function(packet, client){
 
 // MQTT服務端準備完成後觸發
 function setup() {
-  server.authenticate = authenticate;
-  if (debug === false) {
-    server.authorizePublish = authorizePublish;
+  if (isAuth) {
+    server.authenticate = authenticate;
   }
+  
+  //if (debug === false) {
+    server.authorizePublish = authorizePublish;
+  //}
   server.authorizeForward = authorizeForward;
   // server.authorizeSubscribe = authorizeSubscribe;
   console.log('Mosca server is up and running')

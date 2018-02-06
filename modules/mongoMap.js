@@ -1,5 +1,7 @@
 var mongoose = require('./mongoose');
 var Schema = mongoose.Schema;
+var config = require('../config');
+var debug = config.debug;
 
 let mapSchema = new Schema({
     type       : {  type: String, required: true},
@@ -61,8 +63,14 @@ function findLast (json) {
     return new Promise(function (resolve, reject) {
         MapModel.find(json).sort({recv: -1}).limit(1).exec(function(err,docs){
             if(err){
+                if (debug) {
+                    console.log(new Date() + 'findLast err : ' + err.message);
+                }
                 reject(err);
             }else{
+                if (debug) {
+                    console.log(new Date() + 'findLast : ' + JSON.stringify(docs[0]));
+                }
                 resolve(docs[0]);
             }
         });
@@ -73,8 +81,14 @@ function find (json) {
     return new Promise(function (resolve, reject) {
         MapModel.find(json).exec(function(err,docs){
             if(err){
+                if (debug) {
+                    console.log(new Date() + 'findLast err : ' + err.message);
+                }
                 reject(err);
             }else{
+                if (debug) {
+                    console.log(new Date() + 'find : ' + JSON.stringify(docs.length));
+                }
                 resolve(docs);
             }
         });
