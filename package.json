@@ -1,6 +1,6 @@
 {
   "name": "agriBroker",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Agri broker with message filter,parse and save",
   "main": "server.js",
   "dependencies": {

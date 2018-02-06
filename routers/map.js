@@ -82,7 +82,7 @@ module.exports = (function() {
 	});
     
     router.post('/', function(req, res) {
-        var checkArr = ['token','type','typeName','fieldName','map','createUser'];
+        var checkArr = ['token','deviceType','typeName','fieldName','map','createUser'];
         var obj = util.checkFormData(req, checkArr);
         if (obj === null) {
             res.send({
@@ -108,6 +108,61 @@ module.exports = (function() {
 					res.setHeader('Content-Type', 'application/json');
 					res.json({
                         "responseCode" : '000',
+                        "data" : 'Create map success'
+                    });
+                }, function(reason) {
+                    // on rejection(已拒絕時)
+                    res.send({
+                        "responseCode" : '999',
+                        "responseMsg" : reason
+                    }); 
+                }); 
+			}
+		});
+	});
+
+	router.put('/', function(req, res) {
+        var checkArr = ['token','deviceType'];
+        var obj = util.checkFormData(req, checkArr);
+        if (obj === null) {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : 'Missing parameter'
+			});
+        } else if (typeof(obj) === 'string') {
+            res.send({
+				"responseCode" : '999',
+				"responseMsg" : obj
+			});
+		}
+		json = {};
+		if (req.body.map) {
+			json.map = req.body.map;
+		}
+
+		if (req.body.fieldName) {
+			json.fieldName = req.body.fieldName;
+		}
+
+		if (req.body.updateUser) {
+			json.updateUser = req.body.updateUser;
+		}
+
+		json.updateTime = new Date();
+
+        util.checkAndParseToken(req.body.token, function(err,result){
+			if (err) {
+				res.send({err});
+				return false;
+			} else { 
+				//Token is ok
+                var tokenArr = result;
+                mongoMap.update({"deviceType": req.body.deviceType}, json).then(function(data) {
+                    // on fulfillment(已實現時)
+                    res.status(200);
+					res.setHeader('Content-Type', 'application/json');
+					res.json({
+                        "responseCode" : '000',
                         "data" : data
                     });
                 }, function(reason) {
@@ -122,30 +177,38 @@ module.exports = (function() {
 	});
 
 	//Delete by ID 
-	router.delete('/:table/:id', function(req, res) {
-		sequelize.query("SHOW KEYS FROM `"+TABLE_PREFIX+req.params.table+"` WHERE Key_name = 'PRIMARY'", { type: sequelize.QueryTypes.SELECT})
-		.then(function(keys) {
-			var primary_key = keys[0].Column_name;
-			sequelize.query("DELETE FROM `"+TABLE_PREFIX+req.params.table+"` WHERE `"+ primary_key +"` = "+mysql_clean(req.params.id), { type: sequelize.QueryTypes.DELETE})
-			.then(function() {
-				res.status(200);
-				res.json({
-					"responseCode" : '000',
-					"responseMsg": "Deleted"
-				});
-			})
-			.catch( function(err) {
-				res.send({
-					"responseCode" : '999',
-					"responseMsg" : err.message
-				});
-			});
-		})
-		.catch( function(err) {
-			res.send({
+	router.delete('/', function(req, res) {
+		var checkArr = ['token','deviceType'];
+		var obj = util.checkFormData(req, checkArr);
+		if (obj === null) {
+            res.send({
 				"responseCode" : '999',
-				"responseMsg" : err.message
+				"responseMsg" : 'Missing parameter'
 			});
+		}
+		util.checkAndParseToken(req.body.token, function(err,result){
+			if (err) {
+				res.send({err});
+				return false;
+			} else { 
+				//Token is ok
+                var tokenArr = result;
+                mongoMap.remove({"deviceType": req.body.deviceType}).then(function(data) {
+                    // on fulfillment(已實現時)
+                    res.status(200);
+					res.setHeader('Content-Type', 'application/json');
+					res.json({
+                        "responseCode" : '000',
+                        "data" : data
+                    });
+                }, function(reason) {
+                    // on rejection(已拒絕時)
+                    res.send({
+                        "responseCode" : '999',
+                        "responseMsg" : reason
+                    }); 
+                }); 
+			}
 		});
 	});
 

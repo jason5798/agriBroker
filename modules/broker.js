@@ -4,7 +4,10 @@ var mysqlTool = require('./mysqlTool.js');
 var mongoMap = require('./mongoMap.js');
 var debug = util.isDebug();
 var isAuth = util.isAuth();
-
+console.log('MQTT BROKER--------------------------------');
+console.log('debug : ' + debug);
+console.log('isAuth : ' + isAuth);
+console.log('MQTT BROKER--------------------------------');
 var ascoltatore = {
   //using ascoltatore
   type: 'mongo',        
@@ -137,12 +140,26 @@ server.on('delivered', function(packet, client){
 // MQTT服務端準備完成後觸發
 function setup() {
   if (isAuth) {
+    console.log('*****************************************');
+    console.log('*         User auth flow excute         *');
+    console.log('*****************************************');
     server.authenticate = authenticate;
+  } else {
+    console.log('*****************************************');
+    console.log('*         User auth flow no excute      *');
+    console.log('*****************************************');
   }
   
-  //if (debug === false) {
+  if (debug === false) {
+    console.log('*****************************************');
+    console.log('*         check gw flow excute          *');
+    console.log('*****************************************');
     server.authorizePublish = authorizePublish;
-  //}
+  } else {
+    console.log('*****************************************');
+    console.log('*         check gw flow no excute       *');
+    console.log('*****************************************');
+  }
   server.authorizeForward = authorizeForward;
   // server.authorizeSubscribe = authorizeSubscribe;
   console.log('Mosca server is up and running')

@@ -44,7 +44,7 @@ function parseMsgd(obj, callback) {
     if (getType(obj) === 'other') {
         return callback('Not JSON');
     }
-    var type = obj.fport.toString();
+    var fport = obj.fport.toString();
     //Get data attributes
     var mData = obj.data;
     mMac  = obj.macAddr;
@@ -66,7 +66,7 @@ function parseMsgd(obj, callback) {
     //Parse data
     if(mExtra.fport){
         var mType = mExtra.fport.toString();
-        mongoMap.findLast({'type': type}).then(function(doc) {
+        mongoMap.findLast({'deviceType': fport}).then(function(doc) {
             // console.log('docs : ' + typeof doc);
             if(doc) {
                 var mInfo = getTypeData(mData,doc);

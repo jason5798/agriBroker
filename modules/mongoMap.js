@@ -4,7 +4,7 @@ var config = require('../config');
 var debug = config.debug;
 
 let mapSchema = new Schema({
-    type       : {  type: String, required: true},
+    deviceType : {  type: String, required: true},
     typeName   : {  type: String, required: true},
     fieldName  : {  type: Schema.Types.Mixed, 
                     default: null, 
@@ -32,12 +32,13 @@ module.exports = {
     create,
     findLast,
     find,
-    update
+    update,
+    remove
 }
 
 function create (obj) {
     var newMap = new MapModel({
-        type        : obj.type,
+        deviceType  : obj.deviceType,
         typeName    : obj.typeName,
         fieldName   : obj.fieldName,
         map         : obj.map,
@@ -95,12 +96,42 @@ function find (json) {
     });
 }
 
-function update (_type,json) {
+function update (conditions, json) {
     return new Promise(function (resolve, reject) {
-        MapModel.update({type:_type},
-        {"$set":json},{"upsert":true,},function (err,result){});
+        MapModel.update(conditions,
+            json,
+            {safe : true, upsert : true},
+            (err, rawResponse)=>{
+                if (err) {
+                    if (debug) {
+                        console.log(new Date() + 'update map err : ' + err.message);
+                    }
+                    reject(err);
+                } else {
+                    if (debug) {
+                        console.log(new Date() + 'update map : ' + rawResponse);
+                    }
+                    resolve('Update map success');
+                }
+        });
     });
 }
+
+function remove (json) {
+    return new Promise(function (resolve, reject) {
+        MapModel.remove(json, (err)=>{
+            if (err) {
+              console.log('Map remove occur a error:', err);
+               reject(err);
+            } else {
+                console.log('Map remove success');
+                resolve('Map remove success');
+            }
+        });
+    });
+}
+
+
 
 
 
