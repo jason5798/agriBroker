@@ -2,7 +2,7 @@ var mosca = require('mosca')
 var util = require('./util.js');
 var mysqlTool = require('./mysqlTool.js');
 var mongoMap = require('./mongoMap.js');
-var debug = true;
+var debug = util.isDebug();
 
 var ascoltatore = {
   //using ascoltatore
@@ -31,11 +31,13 @@ var authenticate = function(client, username, password, callback) {
 // In this case the client authorized as alice can publish to /users/alice taking
 // the username from the topic and verifing it is the same of the authorized user
 var authorizePublish = function(client, topic, payload, callback) {
-    console.log('authorizePublish--------------------------'); 
-    // console.log('user : ' +  client.user);
-    // console.log('topic : ' +  topic);
-    // console.log('authorizePublish payload : ' +  payload.toString('utf8'));
-
+    if (debug) {
+      console.log('authorizePublish--------' + new Date()); 
+      console.log('user : ' +  client.user);
+      console.log('topic : ' +  topic);
+      console.log('authorizePublish payload : ' +  payload.toString('utf8'));
+    }  
+  
     // example topic : GIOT-GW/DL/00001C497BC0C094
     var arr = topic.split('/');
     // Verify
@@ -54,8 +56,14 @@ var authorizePublish = function(client, topic, payload, callback) {
        callback(null, false); // Check fail
       }
       if (devices.length > 0) { // Already binded
+        if (debug) {
+          console.log('gw mac : ' + gwMac + 'already binded');
+        }
         callback(null, true);
       } else {
+        if (debug) {
+          console.log('gw mac : ' + gwMac + 'without bind');
+        }
         callback(null, false); // Not bind   
       }
     })
@@ -103,24 +111,9 @@ server.on('ready', setup);
   console.log('Client', client);
 }); */
 server.on('published', function (packet, client) {
+    console.log('Published ---------' + new Date());
     console.log('Published topic: ', packet.topic);
-    // console.log('Published message: ', packet.payload.toString('utf8'));
-    
-    /* switch (packet.topic) {
-        case 'test':
-            console.log("payload: ", packet.payload.toString());
-            var test = packet.payload.toString() + 'test';
-            var msg = {
-                topic: 'test',
-                payload:  '5678' ,
-                qos: 1,
-                retain: false
-            };
-            server.publish(msg, function () {
-                console.log('repeat! ');
-            });
-            break;
-    } */
+    console.log("payload: ", packet.payload.toString());
 });
 //客戶端連接後觸發
 server.on('clientConnected', function(client) {

@@ -7,6 +7,7 @@ var CryptoJS = require("crypto-js");
 var async  = require('async');
 var config = require('../config');
 var mysqlTool = require('./mysqlTool.js');
+var debug = isDebug();
 
 module.exports = {
     checkDevice,
@@ -14,7 +15,12 @@ module.exports = {
     createMap,
     checkAndParseToken,
     checkAndParseMessage,
-    checkFormData
+    checkFormData,
+    isDebug
+}
+
+function isDebug () {
+    return config.debug;
 }
   
 function checkDevice(mac, callback) {
@@ -29,22 +35,10 @@ function checkDevice(mac, callback) {
 }
 
 function parseMsgd(obj, callback) {
-    /*if (debug)
-        console.log('message type : ' + typeof message);
-    if (getType(message) === 'string') {
-        try {
-            var mesObj = JSON.parse(message);
-        } catch (error) {
-            return callback(error.message);
-        }
-        
-        if (getType(mesObj) === 'other') {
-            return callback('Not JSON');
-        }
-        var obj = mesObj[0];
-    } else if (getType(message) === 'object'){
-        var obj = message;
-    }*/
+
+    if (getType(obj) === 'other') {
+        return callback('Not JSON');
+    }
     var type = obj.fport.toString();
     //Get data attributes
     var mData = obj.data;
@@ -175,11 +169,17 @@ function saveMsgToDB (msg) {
 
 function checkAndParseToken (token,callback) {
 	if (!token) {
+        if (debug) {
+            console.log('Token is missing');
+        }
 		return({
 			"responseCode" : '999',
 			"responseMsg" : 'Missing parameter'
 		});
 	} else if (token.length < 1){
+        if (debug) {
+            console.log('Token length error');
+        }
 		return({
 			"responseCode" : '999',
 			"responseMsg" : 'Token length error'
@@ -191,7 +191,10 @@ function checkAndParseToken (token,callback) {
 	try {
 		var encrypted  = CryptoJS.TripleDES.decrypt(token, config.secretKey);
 		var encryptedBase64 = encrypted.toString(CryptoJS.enc.Utf8);
-		console.log(encryptedBase64);
+        
+        if (debug) {
+            console.log('Token encrypte :' + encryptedBase64);
+        }
 		var tArr = encryptedBase64.split(':')
 		var ts = tArr[1];
 	} catch (error) {
@@ -213,6 +216,9 @@ function checkAndParseToken (token,callback) {
 		}
 	], function(errs, results){
 		if(errs) {
+            if (debug) {
+                console.log('checkAndParseToken err :\n' + JSON.parse(errs));
+            }
             return callback({
                 "responseCode" : '404',
                 "responseMsg" : 'Query data fail'
@@ -220,6 +226,9 @@ function checkAndParseToken (token,callback) {
         }
         //Get history check
         if(results[0] === undefined || results[0].length <1){
+            if (debug) {
+                console.log('User already logout');
+            }
             return callback({
                 "responseCode" : '404',
                 "responseMsg" : 'User already logout'
@@ -227,6 +236,9 @@ function checkAndParseToken (token,callback) {
         }
         //Get properties check
         if (results[1].length < 1) {
+            if (debug) {
+                console.log('No properties data');
+            }
             return callback({
                 "responseCode" : '404',
                 "responseMsg" : 'No properties data'
@@ -239,6 +251,9 @@ function checkAndParseToken (token,callback) {
             var loginSeconds = parseInt(ts)
             let subVal = nowSeconds - loginSeconds;
             if( subVal > period || subVal < 0 ){
+                if (debug) {
+                    console.log('Token expired');
+                }
                 return callback({
                     "responseCode" : '401',
                     "responseMsg" : 'Token expired'
@@ -247,9 +262,10 @@ function checkAndParseToken (token,callback) {
                 return callback(null,tArr);
             }
         } catch (error) {
+            onsole.log(new Date() + 'checkAndParseToken err :' + error);
             return callback({
                 "responseCode" : '999',
-                "responseMsg" : 'Unauthorized'
+                "responseMsg" : error
             });
         }
 	});
@@ -286,13 +302,16 @@ function checkAndParseMessage (message, callback) {
 		}
 	], function(errs, results){
         if(errs){
-            console.log(errs);
+            console.log(new Date() + 'checkAndParseMessage err : ' + JSON.stringify(errs));
             return callback(errs);
         } 
         // console.log('results[0] : ' + results[0]);
         // console.log('results[1] : ' + JSON.stringify(results[1]));
         if (results[0].length === 0) {
             //If no same data
+            if (debug) {
+                console.log('No same data, return publish message');
+            }
             return callback(null, results[1]);
         } else if (results[0].length === 1){
             //If has same data then check timestamp
@@ -300,8 +319,14 @@ function checkAndParseMessage (message, callback) {
             var ts2 = results[1].timestamp;
             // If over ond day to forward data
             if (Math.abs(ts1 -ts2) > 86400) {
+                if (debug) {
+                    console.log('Has same data (mac,frameCnt) but timestamp is different return publish message');
+                }
                 return callback(null, results[1]);
             } else {
+                if (debug) {
+                    console.log('Has same data');
+                }
                 return callback({
                     "responseCode" : '401',
                     "responseMsg" : 'Has same data'
