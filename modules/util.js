@@ -146,7 +146,7 @@ function getTypeData(data,mapObj) {
         var count = keys.length;
         for(var i =0;i<count;i++){
             //console.log( keys[i]+' : '+ obj[keys[i]]);
-            info[keys[i]] = getIntData(obj[keys[i]],data);
+            info[keys[i]] = Number(getIntData(obj[keys[i]],data) );
             // console.log(keys[i] + ' : ' + info[keys[i]]);
         }
         return info;

@@ -14,7 +14,7 @@ config.dbHost = '210.242.93.31';
 config.dbPort = 3306;
 config.secretKey = 'gemtektoken';
 //Mongo Database
-config.mongoDB = 'agri';
+config.mongoDB = 'agritest';
 //Pagination
 config.paginate = true;
 config.page_limit = 10;
