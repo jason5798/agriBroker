@@ -165,8 +165,9 @@ function getIntData(arrRange,initData){
     // diff = "data/100"
     // data = 2000
     // eval(diff) = 2000/100 = 20
+    var result = eval(diff)
     
-    return eval(diff);
+    return result.toFixed(2);
 }
 
 function convertTime(dateStr)

@@ -90,10 +90,15 @@ var authorizeForward = function(client, packet, callback) {
         console.log('checkAndParseMessage ------------------------------------------------');
         
         if(err) {
-          console.log('??? Drop message : ' + JSON.stringify(err));
-          callback(null, null);
+          
+          console.log('??? Forward data : ' + JSON.stringify(err));
+          if(debug) {
+            callback(null, true);
+          } else {
+            callback(null, false);
+          }
         } else {
-          console.log('*** Publish parse message');
+          console.log('*** Publish parse message and save');
           packet.payload = JSON.stringify(message);
           callback(null, true);
         }
