@@ -1,13 +1,13 @@
+var config = require('../config');
 var mosca = require('mosca')
 var util = require('./util.js');
 var mysqlTool = require('./mysqlTool.js');
 var mongoMap = require('./mongoMap.js');
+
 var debug = util.isDebug();
 var isAuth = util.isAuth();
-console.log('MQTT BROKER--------------------------------');
-console.log('debug : ' + debug);
-console.log('isAuth : ' + isAuth);
-console.log('MQTT BROKER--------------------------------');
+var checkMacData = {};
+
 var ascoltatore = {
   //using ascoltatore
   type: 'mongo',        
@@ -17,13 +17,20 @@ var ascoltatore = {
 };
 
 var moscaSettings = {
-  port: 1883,
+  port: config.mqttPort,
   /*backend: ascoltatore,
   persistence: {
     factory: mosca.persistence.Mongo,
     url: 'mongodb://localhost:27017/mqtt'
   }*/
 };
+
+console.log('MQTT BROKER--------------------------------');
+console.log('Broker port : ' + moscaSettings.port);
+console.log('Broker start time : ' + util.getCurrentTime());
+console.log('debug : ' + debug);
+console.log('isAuth : ' + isAuth);
+console.log('MQTT BROKER--------------------------------');
 
 // Accepts the connection if the username and password are valid
 var authenticate = function(client, username, password, callback) {
@@ -36,7 +43,7 @@ var authenticate = function(client, username, password, callback) {
 // the username from the topic and verifing it is the same of the authorized user
 var authorizePublish = function(client, topic, payload, callback) {
     if (debug) {
-      console.log('authorizePublish--------' + new Date()); 
+      console.log('authorizePublish--------' + util.getCurrentTime()); 
       console.log(' ' +  client.user);
       console.log('topic : ' +  topic);
       console.log('authorizePublish payload : ' +  payload.toString('utf8'));
@@ -74,7 +81,7 @@ var authorizePublish = function(client, topic, payload, callback) {
 }
 
 var authorizeForward = function(client, packet, callback) {
-    console.log('authorizeForward--------------------------');  
+    console.log('*************** ' + util.getCurrentTime() + ' authorizeForward ***************');
     // console.log('user : ' +  client.user);
     // console.log('payload : ' +  packet.payload.toString('utf8'));
     // example topic : GIOT-GW/DL/00001C497BC0C094
@@ -85,21 +92,36 @@ var authorizeForward = function(client, packet, callback) {
     }
     var msg = packet.payload.toString('utf8');
     if (arr[1].includes('UL')  ) { // From Lora message
-      util.checkAndParseMessage(msg, function(err, message){
-        
-        console.log('checkAndParseMessage ------------------------------------------------');
-        
+      if (checkMacData === undefined || checkMacData === null) {
+          checkMacData = {};
+      }
+      var obj = util.getDataJson(msg, checkMacData);
+      
+      if (obj === null) {
+        //Repeat data to drop
+        console.log('Check by memory data : Has same data');
+        callback(null, true);
+        return;
+      } else {
+        //No repeat to update check data
+        checkMacData[obj.macAddr] = obj;
+      }
+      console.log('check data by database ');
+      // Check data by data json in database 
+      // Avoid double data in same time
+      util.checkAndParseMessage(msg,function(err, message){
+
         if(err) {
-          
-          console.log('??? Forward data : ' + JSON.stringify(err));
           if(debug) {
             callback(null, true);
           } else {
             callback(null, false);
           }
         } else {
-          console.log('*** Publish parse message and save');
-          packet.payload = JSON.stringify(message);
+          if (message) {
+            console.log(util.getCurrentTime() + ' *** Publish parse message and save');
+            packet.payload = JSON.stringify(message);
+          }
           callback(null, true);
         }
       });
@@ -123,24 +145,30 @@ server.on('ready', setup);
   console.log('Client', client);
 }); */
 server.on('published', function (packet, client) {
-    console.log('Published ---------' + new Date());
-    console.log('Published topic: ', packet.topic);
-    console.log("payload: ", packet.payload.toString());
+    console.log('------------------------------------------------------------------------');
+    console.log(util.getCurrentTime() + ' Published topic: ', packet.topic);
+    console.log("payload:\n", packet.payload.toString());
 });
 //客戶端連接後觸發
 server.on('clientConnected', function(client) {
-  console.log('Client Connected:', client.id);
+  console.log(util.getCurrentTime() + ' Client Connected ');
+  console.log('Client id:' + client.id);
+  console.log('-----------------------------------------------------------------------');
 });
 
 //客戶端斷開連接後觸發
 server.on('clientDisconnected' , function(client) {
- console.log('Client Disconnected:', client.id);
+  console.log(util.getCurrentTime() + ' Client Disconnected');
+  console.log('Client id:', client.id);
+  console.log('-----------------------------------------------------------------------');
 });
 
 // when client return puback,
-server.on('delivered', function(packet, client){
-  console.log('Delivered', packet.payload.toString());
-});
+/* server.on('delivered', function(packet, client){
+  console.log(util.getCurrentTime() + ' Client delivered');
+  // console.log(packet.payload.toString());
+  console.log('-----------------------------------------------------------------------');
+}); */
 
 // MQTT服務端準備完成後觸發
 function setup() {
@@ -169,7 +197,6 @@ function setup() {
   // server.authorizeSubscribe = authorizeSubscribe;
   console.log('Mosca server is up and running')
 }
-
 
 
 

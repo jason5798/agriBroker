@@ -1,7 +1,8 @@
 var config = {};
-
+//Server
 config.port = 8000;
-
+//MQTT Broker
+config.mqttPort = 1883;
 //Authentication
 config.auth = false;
 
@@ -14,7 +15,7 @@ config.dbHost = '210.242.93.31';
 config.dbPort = 3306;
 config.secretKey = 'gemtektoken';
 //Mongo Database
-config.mongoDB = 'agritest';
+config.mongoDB = 'agri';
 //Pagination
 config.paginate = true;
 config.page_limit = 10;

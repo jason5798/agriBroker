@@ -17,7 +17,10 @@ module.exports = {
     checkAndParseMessage,
     checkFormData,
     isDebug,
-    isAuth
+    isAuth,
+    getCurrentTime,
+    getMsgJson,
+    getDataJson
 }
 
 function isAuth () {
@@ -71,7 +74,7 @@ function parseMsgd(obj, callback) {
             if(doc) {
                 var mInfo = getTypeData(mData,doc);
                 if (debug) {
-                    console.log(new Date() + 'Information : ' + JSON.stringify(mInfo));
+                    console.log(getCurrentTime() + ' Information : ' + JSON.stringify(mInfo));
                 }
                 
                 if(mInfo){
@@ -80,31 +83,31 @@ function parseMsgd(obj, callback) {
                     msg.information=mInfo;
                     
                     if (debug) {
-                        console.log(new Date() + 'parseMsgd message : ' + JSON.stringify(msg));
+                        console.log(getCurrentTime() + ' parseMsgd message finished');
                     }
                     return callback(null, msg);
                 } else {
                     if (debug) {
-                        console.log(new Date() + 'parseMsgd info is not exist');
+                        console.log(getCurrentTime() + ' parseMsgd info is not exist');
                     }
                     return callback({"error": "Information is not exist"});
                 }
             } else {
                 if (debug) {
-                    console.log(new Date() + 'No map for type '+ type);
+                    console.log(getCurrentTime() + ' No map for type '+ type);
                 }
                 return callback({"error" : "No map of type " + type});
             }
             
         }, function(reason) {
             if (debug) {
-                console.log(new Date() + 'parseMsgd findLast err : ' + reason);
+                console.log(getCurrentTime() + ' parseMsgd findLast err : ' + reason);
             }
             return callback({"error": reason});
         });
     } else {
         if (debug) {
-            console.log(new Date() + 'parseMsgd fport is not exist');
+            console.log(getCurrentTime() + ' parseMsgd fport is not exist');
         }
         return callback({"error": "fport is not exist"});
     }
@@ -170,8 +173,7 @@ function getIntData(arrRange,initData){
     return result.toFixed(2);
 }
 
-function convertTime(dateStr)
-{
+function convertTime(dateStr) {
     //method 1 - use convert function
     //var d = new Date();
     var d = new Date(dateStr);
@@ -291,7 +293,7 @@ function checkAndParseToken (token,callback) {
                 return callback(null,tArr);
             }
         } catch (error) {
-            onsole.log(new Date() + 'checkAndParseToken err :' + error);
+            onsole.log(getCurrentTime() + ' checkAndParseToken err :' + error);
             return callback({
                 "responseCode" : '999',
                 "responseMsg" : error
@@ -300,7 +302,7 @@ function checkAndParseToken (token,callback) {
 	});
 }
 
-function checkAndParseMessage (message, callback) {
+function getMsgJson (message) {
     if (getType(message) === 'string') {
         try {
             var mesObj = JSON.parse(message);
@@ -315,6 +317,29 @@ function checkAndParseMessage (message, callback) {
     } else if (getType(message) === 'object'){
         var obj = message;
     }
+    return obj;
+}
+
+function getDataJson(msg, checkData) {
+    try {
+        var obj = getMsgJson(msg);
+        // Check data by data json in memory
+        console.log(getCurrentTime() + ' mac: '+obj.macAddr + ' , frameCnt: ' + obj.frameCnt );
+        var checkObj = checkData[obj.macAddr];
+        if (checkObj === undefined) {
+            return obj;
+        } else if (obj.frameCnt !== checkObj.frameCnt) {
+            return obj;
+        } else {
+            return null;
+        }
+    } catch (error) {
+        return null;
+    }
+}
+
+function checkAndParseMessage (message, callback) {
+    var obj = getMsgJson(message);
     var json = {"macAddr": obj.macAddr, "extra.frameCnt": obj.frameCnt};
     //fun2 getProperties 不需要 fun1 getHistory 的資料
     //但最後的結果要把 fun1 fun2 的資料整合起來
@@ -331,17 +356,20 @@ function checkAndParseMessage (message, callback) {
 		}
 	], function(errs, results){
         if(errs){
-            console.log(new Date() + 'checkAndParseMessage err : ' + JSON.stringify(errs));
+            console.log(getCurrentTime() + ' checkAndParseMessage err : ' + JSON.stringify(errs));
             return callback(errs);
         } 
-        // console.log('results[0] : ' + results[0]);
-        // console.log('results[1] : ' + JSON.stringify(results[1]));
+        
         if (results[0].length === 0) {
             //If no same data
-            console.log('No same data, return publish message');
-            //Save message to mongo database
-            saveMsgToDB(results[1]);
-            return callback(null, results[1]);
+            if(results && results.length >1) {
+                console.log(getCurrentTime() + ' No same data, return publish message :\n' + JSON.stringify(results[1]));
+                //Save message to mongo database
+                saveMsgToDB(results[1]);
+                return callback(null, results[1]);
+            } else {
+                return callback(null, null);
+            }    
         } else if (results[0].length === 1){
             //If has same data then check timestamp
             var ts1 = results[0][0].timestamp;
@@ -395,4 +423,9 @@ function checkFormData (req, checkArr) {
     } catch (error) {
         return 'Parameter format error';
     }
+}
+
+function getCurrentTime() {
+    var now = moment();
+    return now.tz(config.timezone).format('YYYY/MM/DD HH:mm:ss');
 }

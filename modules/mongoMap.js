@@ -65,12 +65,12 @@ function findLast (json) {
         MapModel.find(json).sort({recv: -1}).limit(1).exec(function(err,docs){
             if(err){
                 if (debug) {
-                    console.log(new Date() + 'findLast err : ' + err.message);
+                    console.log('findLast err : ' + err.message);
                 }
                 reject(err);
             }else{
                 if (debug) {
-                    console.log(new Date() + 'findLast : ' + JSON.stringify(docs[0]));
+                    console.log('findLast : OK');
                 }
                 resolve(docs[0]);
             }
