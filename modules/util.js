@@ -8,6 +8,7 @@ var async  = require('async');
 var config = require('../config');
 var mysqlTool = require('./mysqlTool.js');
 var debug = isDebug();
+var epc = require('node-epc');
 
 module.exports = {
     checkDevice,
@@ -76,6 +77,15 @@ function parseMsgd(obj, callback) {
                 if (debug) {
                     console.log(getCurrentTime() + ' Information : ' + JSON.stringify(mInfo));
                 }
+                if (mExtra.fport === 160) {
+                    
+                    if (mInfo.header === 170 && mInfo.end === 142) {
+                       delete mInfo.header;
+                       delete mInfo.end; 
+                    } else {
+                        mInfo = null;
+                    }
+                }
                 
                 if(mInfo){
                     var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
@@ -94,9 +104,9 @@ function parseMsgd(obj, callback) {
                 }
             } else {
                 if (debug) {
-                    console.log(getCurrentTime() + ' No map for type '+ type);
+                    console.log(getCurrentTime() + ' No map for type '+ fport);
                 }
-                return callback({"error" : "No map of type " + type});
+                return callback({"error" : "No map of type " + fport});
             }
             
         }, function(reason) {
@@ -149,7 +159,7 @@ function getTypeData(data,mapObj) {
         var count = keys.length;
         for(var i =0;i<count;i++){
             //console.log( keys[i]+' : '+ obj[keys[i]]);
-            info[keys[i]] = Number(getIntData(obj[keys[i]],data) );
+            info[keys[i]] = getIntData(obj[keys[i]],data);
             // console.log(keys[i] + ' : ' + info[keys[i]]);
         }
         return info;
@@ -162,15 +172,27 @@ function getIntData(arrRange,initData){
     var ret = {};
     var start = arrRange[0];
     var end = arrRange[1];
+    var subStr = initData.substring(start,end);
     var diff = arrRange[2];
-    var data = parseInt(initData.substring(start,end),16);
-    // example : 
-    // diff = "data/100"
-    // data = 2000
-    // eval(diff) = 2000/100 = 20
-    var result = eval(diff)
-    
-    return result.toFixed(2);
+    if (diff === 'epc') {
+        /*parseEPC(subStr, null, function(err, parsed){
+            if (err) {
+                return null;
+            }
+            return parsed;
+        })*/
+        return subStr;
+    } else if (diff==='signhex') {
+       return parseSignHex(subStr);
+    } else {
+        var data = parseInt(subStr, 16);
+        // example : 
+        // diff = "data/100"
+        // data = 2000
+        // eval(diff) = 2000/100 = 20
+        var result = eval(diff)
+        return Number(result.toFixed(2));
+    }
 }
 
 function convertTime(dateStr) {
@@ -192,7 +214,7 @@ function getType(p) {
 
 function saveMsgToDB (msg) {
     mongoDevice.create(msg).then(function(docs) {
-        console.log('saveMsgToDB docs : ' + JSON.stringify(docs));
+        console.log('saveMsgToDB ok');
     }, function(reason) {
         console.log('saveMsgToDB err : ' + reason);
     });
@@ -428,4 +450,59 @@ function checkFormData (req, checkArr) {
 function getCurrentTime() {
     var now = moment();
     return now.tz(config.timezone).format('YYYY/MM/DD HH:mm:ss');
+}
+
+function hex2a(hexx) {
+    var hex = hexx.toString();//force conversion
+    var str = '';
+    for (var i = 0; i < hex.length; i += 2)
+        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    return str;
+}
+
+function parseEPC(code, specified, callback) {
+    if (specified) {
+        epc.getParser(specified)
+        .then(function(sgtin) {
+            sgtin.parse(code)
+                .then(function(parsed) {
+                    console.log('Encoding = ' + parsed.getName());
+                    console.log('Company Prefix = ' + parsed.parts.CompanyPrefix);
+                    console.log('Item Reference = ' + parsed.parts.ItemReference);
+                    console.log('Serial Number = ' + parsed.parts.SerialNumber);
+                    console.log('parsed = ' + JSON.stringify(parsed.parts));
+                    callback(null,parsed.parts);
+                })
+                .fail(function(err) {
+                    console.error(err);
+                    callback(err);
+                });
+        });
+    } else {
+        epc.parse(code)
+        .then(function(parsed) {
+            console.log('Encoding = ' + parsed.getName());
+            console.log('Company Prefix = ' + parsed.parts.CompanyPrefix);
+            console.log('Item Reference = ' + parsed.parts.ItemReference);
+            console.log('Serial Number = ' + parsed.parts.SerialNumber);
+            console.log('parsed = ' + JSON.stringify(parsed.parts));
+            callback(null,parsed.parts);
+        })
+        .fail(function(err) {
+            console.error(err);
+            callback(err);
+        });
+    }
+}
+
+function parseSignHex(hex) {
+    if (hex.length % 2 != 0) {
+        hex = "0" + hex;
+    }
+    var num = parseInt(hex, 16);
+    var maxVal = Math.pow(2, hex.length / 2 * 8);
+    if (num > maxVal / 2 - 1) {
+        num = num - maxVal
+    }
+    return num;
 }

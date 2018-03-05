@@ -10,7 +10,7 @@ var checkMacData = {};
 
 var ascoltatore = {
   //using ascoltatore
-  type: 'mongo',        
+  type: 'mongo',
   url: 'mongodb://localhost:27017/mqtt',
   pubsubCollection: 'ascoltatori',
   mongo: {}
@@ -24,10 +24,18 @@ var moscaSettings = {
     url: 'mongodb://localhost:27017/mqtt'
   }*/
 };
+var mongoDB = config.mongoDB;
+var dbHost = config.dbHost;
+if (!config.isLocalDB) {
+    mongoDB = config.test_mongoDB;
+    dbHost = config.test_dbHost;
+}
 
 console.log('MQTT BROKER--------------------------------');
 console.log('Broker port : ' + moscaSettings.port);
 console.log('Broker start time : ' + util.getCurrentTime());
+console.log('Broker mysql host : ' + dbHost);
+console.log('Broker mongoDB : ' +  mongoDB);
 console.log('debug : ' + debug);
 console.log('isAuth : ' + isAuth);
 console.log('MQTT BROKER--------------------------------');
@@ -43,12 +51,12 @@ var authenticate = function(client, username, password, callback) {
 // the username from the topic and verifing it is the same of the authorized user
 var authorizePublish = function(client, topic, payload, callback) {
     if (debug) {
-      console.log('authorizePublish--------' + util.getCurrentTime()); 
+      console.log('authorizePublish--------' + util.getCurrentTime());
       console.log(' ' +  client.user);
       console.log('topic : ' +  topic);
       console.log('authorizePublish payload : ' +  payload.toString('utf8'));
-    }  
-  
+    }
+
     // example topic : GIOT-GW/DL/00001C497BC0C094
     var arr = topic.split('/');
     // Verify
@@ -64,7 +72,10 @@ var authorizePublish = function(client, topic, payload, callback) {
     // Find device by mac of gate way
     mysqlTool.getDevices(gwMac, function(err, devices){
       if (err) {
-       callback(null, false); // Check fail
+        console.log('????????????????????????????????????????????????????????????????');
+        console.log('mysqlTool.getDevices err:\n' + err);
+        callback(null, false); // Check fail
+        return;
       }
       if (devices.length > 0) { // Already binded
         if (debug) {
@@ -73,9 +84,11 @@ var authorizePublish = function(client, topic, payload, callback) {
         callback(null, true);
       } else {
         if (debug) {
-          console.log('gw mac : ' + gwMac + 'without bind');
+          console.log('topic gw mac : ' + gwMac + 'without bind forward publish in debug mode');
+        } else {
+          console.log('topic gw mac : ' + gwMac + 'without bind drop publish message');
+          callback(null, false); // Not bind
         }
-        callback(null, false); // Not bind   
       }
     })
 }
@@ -96,7 +109,7 @@ var authorizeForward = function(client, packet, callback) {
           checkMacData = {};
       }
       var obj = util.getDataJson(msg, checkMacData);
-      
+
       if (obj === null) {
         //Repeat data to drop
         console.log('Check by memory data : Has same data');
@@ -107,7 +120,7 @@ var authorizeForward = function(client, packet, callback) {
         checkMacData[obj.macAddr] = obj;
       }
       console.log('check data by database ');
-      // Check data by data json in database 
+      // Check data by data json in database
       // Avoid double data in same time
       util.checkAndParseMessage(msg,function(err, message){
 
@@ -182,7 +195,7 @@ function setup() {
     console.log('*         User auth flow no excute      *');
     console.log('*****************************************');
   }
-  
+
   if (debug === false) {
     console.log('*****************************************');
     console.log('*         check gw flow excute          *');

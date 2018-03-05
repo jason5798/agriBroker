@@ -1,9 +1,14 @@
 var Sequelize = require('sequelize');
 var config = require('../config');
+var dbHost= config.dbHost;
+if (!config.isLocalDB) {
+    dbHost = config.test_dbHost;
+    console.log('connect to dbHost : ' +  dbHost);
+}
 
 //Initialize database
 var sequelize = new Sequelize(config.database, config.username, config.password, {
-    host: config.dbHost,
+    host: dbHost,
     dialect: 'mysql',
     pool: {
         max: 10,
@@ -75,4 +80,4 @@ function getProperties (callback) {
 
 
 
-    
+
