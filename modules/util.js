@@ -21,7 +21,23 @@ module.exports = {
     isAuth,
     getCurrentTime,
     getMsgJson,
-    getDataJson
+    getDataJson,
+    getUserTokenArr
+}
+
+function decode (dataEncrypt, key) {
+    try {
+        var encrypted  = CryptoJS.TripleDES.decrypt(dataEncrypt, key);
+        return  encrypted.toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+        return null;
+    }
+}
+
+function getUserTokenArr (token) {
+    var tokenStr = decode(token, config.tokenKey);
+    var tArr = tokenStr.split(':');
+    return tArr;
 }
 
 function isAuth () {
@@ -31,7 +47,7 @@ function isAuth () {
 function isDebug () {
     return config.debug;
 }
-  
+
 function checkDevice(mac, callback) {
     var datas = db.getDevices(mac, function(err, devices){
         if (err) {
@@ -73,25 +89,29 @@ function parseMsgd(obj, callback) {
         mongoMap.findLast({'deviceType': fport}).then(function(doc) {
             // console.log('docs : ' + typeof doc);
             if(doc) {
+            	if (mDate.length === 0) {
+            		callback({"error": "Payload is empty"});
+            		return;
+            	}
                 var mInfo = getTypeData(mData,doc);
                 if (debug) {
                     console.log(getCurrentTime() + ' Information : ' + JSON.stringify(mInfo));
                 }
                 if (mExtra.fport === 160) {
-                    
+
                     if (mInfo.header === 170 && mInfo.end === 142) {
                        delete mInfo.header;
-                       delete mInfo.end; 
+                       delete mInfo.end;
                     } else {
                         mInfo = null;
                     }
                 }
-                
+
                 if(mInfo){
                     var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
                     // console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
                     msg.information=mInfo;
-                    
+
                     if (debug) {
                         console.log(getCurrentTime() + ' parseMsgd message finished');
                     }
@@ -108,7 +128,7 @@ function parseMsgd(obj, callback) {
                 }
                 return callback({"error" : "No map of type " + fport});
             }
-            
+
         }, function(reason) {
             if (debug) {
                 console.log(getCurrentTime() + ' parseMsgd findLast err : ' + reason);
@@ -133,7 +153,7 @@ function createMap () {
                             "water": "水含量",
                             "ec": "電導度"
                         },
-        map         :   { 
+        map         :   {
                             "ph": [4, 8, 11],
                             "water": [14, 18, 100],
                             "temperature": [ 18, 22, 100],
@@ -186,7 +206,7 @@ function getIntData(arrRange,initData){
        return parseSignHex(subStr);
     } else {
         var data = parseInt(subStr, 16);
-        // example : 
+        // example :
         // diff = "data/100"
         // data = 2000
         // eval(diff) = 2000/100 = 20
@@ -220,82 +240,67 @@ function saveMsgToDB (msg) {
     });
 }
 
-function checkAndParseToken (token,callback) {
+function checkAndParseToken (token, res, callback) {
 	if (!token) {
-        if (debug) {
-            console.log('Token is missing');
-        }
-		return({
-			"responseCode" : '999',
-			"responseMsg" : 'Missing parameter'
-		});
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'Missing parameter'
+        });
+        return callback(true);
 	} else if (token.length < 1){
-        if (debug) {
-            console.log('Token length error');
-        }
-		return({
-			"responseCode" : '999',
-			"responseMsg" : 'Token length error'
-		});
+        res.send({
+            "responseCode" : '999',
+            "responseMsg" : 'token length error'
+        });
+		return callback(true);
 	}
-		
-	// Decrypt 
+
+	// Decrypt
 	console.log('token :\n' + token);
-	try {
-		var encrypted  = CryptoJS.TripleDES.decrypt(token, config.secretKey);
-		var encryptedBase64 = encrypted.toString(CryptoJS.enc.Utf8);
-        
-        if (debug) {
-            console.log('Token encrypte :' + encryptedBase64);
-        }
-		var tArr = encryptedBase64.split(':')
-		var ts = tArr[1];
-	} catch (error) {
-		console.log(error);
-	}
-    
-    //fun2 getProperties 不需要 fun1 getHistory 的資料
-    //但最後的結果要把 fun1 fun2 的資料整合起來
-	async.series([
+    var tArr = getUserTokenArr(token);
+    var ts = tArr[1];
+    var actInfo = {};
+    actInfo['grp'] = tArr[0];
+    actInfo['ts'] = Number(tArr[1]);
+    actInfo['userId'] = Number(tArr[2]);
+    actInfo['cpId'] = Number(tArr[3]);
+    actInfo['roleId'] = Number(tArr[4]);
+    actInfo['dataset'] = Number(tArr[5]);
+
+	async.waterfall([
 		function(next){
 			mysqlTool.getHistory(token, function(err1, result1){
+                if(result1.length <= 0) {
+                    res.send({
+                        "responseCode" : '404',
+                        "responseMsg" : 'User already logout'
+                    });
+                    return callback(true);
+                }
                 next(err1, result1);
 			});
 		},
-		function(next){
-			mysqlTool.getProperties(function(err2, result2){
-                next(err2, result2);
+		function(rst1, next){
+			mysqlTool.getProperties('TOKEN_EXPIRE', function(err2, result2){
+                next(err2, [rst1, result2]);
 			});
 		}
 	], function(errs, results){
 		if(errs) {
-            if (debug) {
-                console.log('checkAndParseToken err :\n' + JSON.parse(errs));
-            }
-            return callback({
+            res.send({
                 "responseCode" : '404',
-                "responseMsg" : 'Query data fail'
+                "responseMsg" : 'Query token data fail'
             });
+            return callback(true);
         }
-        //Get history check
-        if(results[0] === undefined || results[0].length <1){
-            if (debug) {
-                console.log('User already logout');
-            }
-            return callback({
-                "responseCode" : '404',
-                "responseMsg" : 'User already logout'
-            });
-        }
+
         //Get properties check
         if (results[1].length < 1) {
-            if (debug) {
-                console.log('No properties data');
-            }
-            return callback({
+            res.send({
                 "responseCode" : '404',
                 "responseMsg" : 'No properties data'
             });
+            return callback(true);
         }
         try {
             var period = Number(results[1].p_value);
@@ -304,22 +309,44 @@ function checkAndParseToken (token,callback) {
             var loginSeconds = parseInt(ts)
             let subVal = nowSeconds - loginSeconds;
             if( subVal > period || subVal < 0 ){
-                if (debug) {
-                    console.log('Token expired');
-                }
-                return callback({
-                    "responseCode" : '401',
+                res.send({
+                    "responseCode" : '404',
                     "responseMsg" : 'Token expired'
                 });
+                return callback(true);
             }else{
-                return callback(null,tArr);
+                let grpStr = actInfo.grp
+                let ar = grpStr.split(',')
+                let accessFlg = false
+                let OAFlg = false
+                for(let i = 0 ; i < ar.length ; i++){
+                    if(ar[i] === '22'|| ar[i] === '30'){
+                        accessFlg = true
+                    }
+                    if(ar[i] === '8'){
+                        OAFlg = true
+                    }
+                }
+                if (accessFlg) {
+                    var data = {
+                        "OAFlg" : OAFlg,
+                        "userInfo" : actInfo
+                    };
+                    return callback(null, data);
+                } else {
+                    res.send({
+                        "responseCode" : '401',
+                        "responseMsg" : 'no permission to access'
+                    });
+                    return callback(true);
+                }
             }
         } catch (error) {
-            onsole.log(getCurrentTime() + ' checkAndParseToken err :' + error);
-            return callback({
-                "responseCode" : '999',
+            res.send({
+                "responseCode" : '404',
                 "responseMsg" : error
             });
+            return callback(true);
         }
 	});
 }
@@ -331,7 +358,7 @@ function getMsgJson (message) {
         } catch (error) {
             return callback(error.message);
         }
-        
+
         if (getType(mesObj) === 'other') {
             return callback('Not JSON');
         }
@@ -380,8 +407,8 @@ function checkAndParseMessage (message, callback) {
         if(errs){
             console.log(getCurrentTime() + ' checkAndParseMessage err : ' + JSON.stringify(errs));
             return callback(errs);
-        } 
-        
+        }
+
         if (results[0].length === 0) {
             //If no same data
             if(results && results.length >1) {
@@ -391,7 +418,7 @@ function checkAndParseMessage (message, callback) {
                 return callback(null, results[1]);
             } else {
                 return callback(null, null);
-            }    
+            }
         } else if (results[0].length === 1){
             //If has same data then check timestamp
             var ts1 = results[0][0].timestamp;
@@ -431,7 +458,7 @@ function checkFormData (req, checkArr) {
                 } else {
                     json[key] = req.body[key];
                 }
-                
+
                 count ++;
             }
         });

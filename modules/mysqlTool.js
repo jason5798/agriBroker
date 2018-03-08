@@ -1,10 +1,6 @@
 var Sequelize = require('sequelize');
 var config = require('../config');
 var dbHost= config.dbHost;
-if (!config.isLocalDB) {
-    dbHost = config.test_dbHost;
-    console.log('connect to dbHost : ' +  dbHost);
-}
 
 //Initialize database
 var sequelize = new Sequelize(config.database, config.username, config.password, {
@@ -41,7 +37,7 @@ function getData (query, callback) {
 			return callback(null, rows);
 		})
 		.catch( function(err) {
-            return callback(err.message);
+            return callback(err);
 		});
 }
 
@@ -65,8 +61,8 @@ function getHistory (token, callback) {
     });
 }
 
-function getProperties (callback) {
-    var read_query = "SELECT * FROM `" + ( TABLE_PREFIX + "system_properties" ) + "` WHERE p_name = 'TOKEN_EXPIRE' ";
+function getProperties (p_name, callback) {
+    var read_query = "SELECT * FROM `" + ( TABLE_PREFIX + "system_properties" ) + "` WHERE p_name = '"+p_name+"' ";
     var rows = getData(read_query, function(err,data){
         if (err) {
             return callback(err);

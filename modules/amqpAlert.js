@@ -7,8 +7,8 @@ var _consumerTag = null;
 var test = false;
 var options = { host: config.amqpHost,
                 port: config.amqpPort,
-                login: config.login,
-                password: config.password,
+                login: config.amqpLogin,
+                password: config.amqpPassword,
                 connectionTimeout: 10000,
                 authMechanism: 'AMQPLAIN',
                 vhost: config.vhost,

@@ -17,7 +17,7 @@ module.exports = (function() {
 			return false;
 		}
 		
-        util.checkAndParseToken(token, function(err,result){
+        util.checkAndParseToken(token, res, function(err,result){
 			if (err) {
 				res.send({err});
 				return false;
@@ -55,7 +55,7 @@ module.exports = (function() {
 		}
         var json = {'type': type};
 		
-        util.checkAndParseToken(token, function(err,result){
+        util.checkAndParseToken(token,res, function(err,result){
 			if (err) {
 				res.send({err});
 				return false;
@@ -95,7 +95,7 @@ module.exports = (function() {
 				"responseMsg" : obj
 			});
         }
-        util.checkAndParseToken(req.body.token, function(err,result){
+        util.checkAndParseToken(req.body.token, res, function(err,result){
 			if (err) {
 				res.send({err});
 				return false;
@@ -150,7 +150,7 @@ module.exports = (function() {
 
 		json.updateTime = new Date();
 
-        util.checkAndParseToken(req.body.token, function(err,result){
+        util.checkAndParseToken(req.body.token, res, function(err,result){
 			if (err) {
 				res.send({err});
 				return false;
@@ -186,7 +186,7 @@ module.exports = (function() {
 				"responseMsg" : 'Missing parameter'
 			});
 		}
-		util.checkAndParseToken(req.body.token, function(err,result){
+		util.checkAndParseToken(req.body.token, res, function(err,result){
 			if (err) {
 				res.send({err});
 				return false;
