@@ -1,6 +1,6 @@
 var config = {};
 
-config.port = 8001;
+config.port = 8000;
 
 //Authentication
 config.auth = false;
