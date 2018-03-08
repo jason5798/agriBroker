@@ -9,6 +9,7 @@ var alert = require('./alert.js');
 var debug = util.isDebug();
 var isAuth = util.isAuth();
 var checkMacData = {};
+var checkNotifyData = {};
 
 var ascoltatore = {
   //using ascoltatore
@@ -136,8 +137,23 @@ var authorizeForward = function(client, packet, callback) {
           if (message) {
             console.log(util.getCurrentTime() + ' *** Publish parse message and save');
             packet.payload = JSON.stringify(message);
-            if (message.information) {
-              if (message.information.epc) {
+            var isSendNotify = true;
+            if (message.extra.fport === 160 || message.extra.fport === 163) {
+              if (message.extra.fport === 163) {
+                let lastStatus = checkNotifyData[message.macAddr];
+                if (lastStatus !== undefined) {
+                  if(message.information.status === lastStatus){
+                    isSendNotify = false;
+                  } else {
+                    isSendNotify = true;
+                    checkNotifyData[message.macAddr] = message.information.status;
+                  }
+                } else {
+                  isSendNotify = true;
+                  checkNotifyData[message.macAddr] = message.information.status
+                }
+              }  
+              if (isSendNotify === true) {
                 alert.sendAlert(message);
               }
             }
@@ -160,10 +176,7 @@ var server = new mosca.Server(moscaSettings);
 server.on('ready', setup);
 
 //消息發布後觸發
-/* server.on('published', function(packet, client) {
-  console.log('Published', packet);
-  console.log('Client', client);
-}); */
+
 server.on('published', function (packet, client) {
     console.log('------------------------------------------------------------------------');
     console.log(util.getCurrentTime() + ' Published topic: ', packet.topic);

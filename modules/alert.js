@@ -23,7 +23,7 @@ function sendAlert (msg) {
         var ok = ch.assertExchange(ex, 'direct', {durable: true})
         var description = '';
         if ( msg.extra.fport===163) {
-            if (msg.information.status === 0) {
+            if (msg.information.status === 1) {
                 description = '手環'+ msg.macAddr + '有戴好'; 
             } else {
                 description = '手環'+ msg.macAddr + '沒戴好'; 
@@ -79,7 +79,7 @@ function sendAlert (msg) {
 
         return ok.then(function() {
         ch.publish(ex, 'WeChat', Buffer.from(JSON.stringify(message)));
-        console.log(" [x] Sent '%s'", message);
+        console.log(" [x] Sent '%s'", description);
         return ch.close();
         });
     }).finally(function() { conn.close(); });

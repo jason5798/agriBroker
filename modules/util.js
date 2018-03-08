@@ -89,7 +89,7 @@ function parseMsgd(obj, callback) {
         mongoMap.findLast({'deviceType': fport}).then(function(doc) {
             // console.log('docs : ' + typeof doc);
             if(doc) {
-            	if (mDate.length === 0) {
+            	if (mData.length === 0) {
             		callback({"error": "Payload is empty"});
             		return;
             	}
@@ -102,6 +102,14 @@ function parseMsgd(obj, callback) {
                     if (mInfo.header === 170 && mInfo.end === 142) {
                        delete mInfo.header;
                        delete mInfo.end;
+                    } else {
+                        mInfo = null;
+                    }
+                } else if (mExtra.fport === 162) {
+                    var check = mInfo.header + mInfo.switch1 + mInfo.switch2 + mInfo.switch3 + mInfo.switch4;  
+                    if (mInfo.header === 6 && mInfo.checksum === check) {
+                       delete mInfo.header;
+                       delete mInfo.checksum;
                     } else {
                         mInfo = null;
                     }
