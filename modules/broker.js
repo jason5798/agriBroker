@@ -3,6 +3,8 @@ var mosca = require('mosca')
 var util = require('./util.js');
 var mysqlTool = require('./mysqlTool.js');
 var mongoMap = require('./mongoMap.js');
+var alert = require('./alert.js');
+//var amqpAlert = require('./amqpAlert');
 
 var debug = util.isDebug();
 var isAuth = util.isAuth();
@@ -134,6 +136,11 @@ var authorizeForward = function(client, packet, callback) {
           if (message) {
             console.log(util.getCurrentTime() + ' *** Publish parse message and save');
             packet.payload = JSON.stringify(message);
+            if (message.information) {
+              if (message.information.epc) {
+                alert.sendAlert(message);
+              }
+            }
           }
           callback(null, true);
         }

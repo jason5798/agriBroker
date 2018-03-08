@@ -1,9 +1,11 @@
 {
   "name": "agri_broker",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Agri broker with message filter,parse and save",
   "main": "server.js",
   "dependencies": {
+    "amqp": "^0.2.6",
+    "amqplib": "^0.5.2",
     "async": "^2.6.0",
     "body-parser": "~1.0.1",
     "crypto-js": "^3.1.9-1",
@@ -15,6 +17,7 @@
     "morgan": "^1.9.0",
     "mosca": "^2.7.0",
     "mysql": "~2.9.0",
+    "node-epc": "^0.1.1",
     "sequelize": "~3.6.0"
   },
   "scripts": {
