@@ -64,24 +64,32 @@ function parseMsgd(obj, callback) {
     if (getType(obj) === 'other') {
         return callback('Not JSON');
     }
-    var fport = obj.fport.toString();
+    var fport = Number(obj.fport);
     //Get data attributes
     var mData = obj.data;
-    mMac  = obj.macAddr;
-    var timestamp = convertTime(obj.time);
+    var mMac  = obj.macAddr;
+    var timestamp = 0;
+    var mRecv = new Date();
+    if (fport !== 162) {
+        timestamp = convertTime(obj.time);
+        mRecv = obj.time;
+    } else {
+        timestamp = mRecv.getTime();
+    }
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
-    var mRecv = obj.time;
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
 
-    // console.log('mRecv : '+  mRecv);
-    // console.log('mDate : '+ mDate);
-    var mExtra = {'gwip': obj.gwip,
-              'gwid': obj.gwid,
-              'rssi': obj.rssi,
-              'snr' : obj.snr,
-              'fport': obj.fport,
-              'frameCnt': obj.frameCnt,
-              'channel': obj.channel};
+    var mExtra = {'fport': fport};
+    if (fport !== 162) {
+        mExtra = {'gwip': obj.gwip,
+                'gwid': obj.gwid,
+                'rssi': obj.rssi,
+                'snr' : obj.snr,
+                'fport': fport,
+                'frameCnt': obj.frameCnt,
+                'channel': obj.channel
+            };
+    }
 
     //Parse data
     if(mExtra.fport){
