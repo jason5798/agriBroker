@@ -121,6 +121,11 @@ function parseMsgd(obj, callback) {
                     } else {
                         mInfo = null;
                     }
+                } else if (mExtra.fport === 161) {
+                    if (mInfo.sign === 1 || mInfo.sign === 3) {
+                        mInfo.temperature = - mInfo.temperature;
+                    }
+                    delete mInfo.sign;
                 }
 
                 if(mInfo){
