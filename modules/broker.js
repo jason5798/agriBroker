@@ -10,6 +10,26 @@ var debug = util.isDebug();
 var isAuth = util.isAuth();
 var checkMacData = {};
 var checkNotifyData = {};
+var checkDevice = [];
+
+function init () {
+  var sql = 'SELECT * FROM cloudb.api_device_info WHERE 1';
+  checkDevice = [];
+  mysqlTool.query(sql, function(err, deviceList){
+    deviceList.forEach( function(device){
+      try {
+        let mac = device.device_mac;
+        console.log('mac : ' + mac);
+        checkDevice.push(mac);
+      } catch (error) {
+        console.log('???? checkNewDevice err: ' + err);
+      }
+    });
+    console.log('checkDevice mac : ' + JSON.stringify(checkDevice));
+  });
+}
+
+init();
 
 var ascoltatore = {
   //using ascoltatore
@@ -106,7 +126,14 @@ var authorizeForward = function(client, packet, callback) {
     if (arr.length !== 3) {
       return;
     }
+    
     var msg = packet.payload.toString('utf8');
+    if (msg === 'init') {
+      init();
+      callback(null, false);
+      return;
+    }
+    console.log('message type : ' + typeof(msg));
     if (arr[1].includes('UL')  ) { // From Lora message
       if (checkMacData === undefined || checkMacData === null) {
           checkMacData = {};
@@ -137,6 +164,14 @@ var authorizeForward = function(client, packet, callback) {
           if (message) {
             console.log(util.getCurrentTime() + ' *** Publish parse message and save');
             packet.payload = JSON.stringify(message);
+            //Jason add for check is new device or not? ----- start
+            console.log('checkDevice.includes(message.macAddr) : ' + checkDevice.includes(message.macAddr));
+            if (!checkDevice.includes(message.macAddr)) {
+              console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
+              console.log(util.getCurrentTime() + ' Add new device ' + message.macAddr);
+              addNewDevice (message);
+              console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
+            }
             var isSendNotify = true;
             if (message.extra.fport === 160 || message.extra.fport === 163) {
               if (message.extra.fport === 163) {
@@ -229,6 +264,21 @@ function setup() {
   server.authorizeForward = authorizeForward;
   // server.authorizeSubscribe = authorizeSubscribe;
   console.log('Mosca server is up and running')
+}
+
+function addNewDevice (message) {
+  var sql = "INSERT INTO `cloudb`.`api_device_info` ( `device_mac`, `device_name`, `device_status`, `device_type`, `device_share`, `device_active_time`, `device_bind_time`, `device_cp_id`, `device_user_id`, `createTime`, `createUser`) VALUES ( '" 
+            + message.macAddr +"', '" + message.macAddr +"', 2, 'L', 0, current_time(), current_time(), 1, 1, current_time(), 1)"
+  console.log('addNewDevice sql :\n' + sql);
+  mysqlTool.insert(sql, function (err, result) {
+    if (err) {
+      console.log('addNewDevice + ' + message.maccAddr + ' is err : ' + err);
+    } else {
+      console.log('addNewDevice + ' + message.maccAddr + ' is finished : ' + result);
+      checkDevice.push(message.macAddr);
+    }
+    
+  });
 }
 
 
