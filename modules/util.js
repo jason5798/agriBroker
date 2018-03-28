@@ -126,7 +126,12 @@ function parseMsgd(obj, callback) {
                         mInfo.temperature = - mInfo.temperature;
                     }
                     delete mInfo.sign;
-                }
+                } else if (mExtra.fport === 164) {
+                    if (mInfo.sign === 1 ) {
+                        mInfo.status = - mInfo.status;
+                    }
+                    delete mInfo.sign;
+                } 
 
                 if(mInfo){
                     var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
