@@ -46,4 +46,5 @@ config.qu_name_uldata = 'ul.jingdfh-test.wechat.que';
 config.routingKey = 'WeChat';
 //MQTT
 config.mqttPort = 1883;
+config.isNeedFiltet = false;
 module.exports = config;

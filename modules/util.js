@@ -70,7 +70,7 @@ function parseMsgd(obj, callback) {
     var mMac  = obj.macAddr;
     var timestamp = 0;
     var mRecv = new Date();
-    if (fport !== 162) {
+    if (fport !== 162 || fport !== 164) {
         timestamp = convertTime(obj.time);
         mRecv = obj.time;
     } else {
@@ -105,35 +105,34 @@ function parseMsgd(obj, callback) {
                 if (debug) {
                     console.log(getCurrentTime() + ' Information : ' + JSON.stringify(mInfo));
                 }
-                if (mExtra.fport === 160) {
-
-                    if (mInfo.header === 170 && mInfo.end === 142) {
-                       delete mInfo.header;
-                       delete mInfo.end;
-                    } else {
-                        mInfo = null;
-                    }
-                } else if (mExtra.fport === 162) {
-                    var check = mInfo.header + mInfo.switch1 + mInfo.switch2 + mInfo.switch3 + mInfo.switch4;  
-                    if (mInfo.header === 6 && mInfo.checksum === check) {
-                       delete mInfo.header;
-                       delete mInfo.checksum;
-                    } else {
-                        mInfo = null;
-                    }
-                } else if (mExtra.fport === 161) {
-                    if (mInfo.sign === 1 || mInfo.sign === 3) {
-                        mInfo.temperature = - mInfo.temperature;
-                    }
-                    delete mInfo.sign;
-                } else if (mExtra.fport === 164) {
-                    if (mInfo.sign === 1 ) {
-                        mInfo.status = - mInfo.status;
-                    }
-                    delete mInfo.sign;
-                } 
-
                 if(mInfo){
+                    if (mExtra.fport === 160) {
+
+                        if (mInfo.header === 170 && mInfo.end === 142) {
+                           delete mInfo.header;
+                           delete mInfo.end;
+                        } else {
+                            mInfo = null;
+                        }
+                    } else if (mExtra.fport === 162) {
+                        var check = mInfo.header + mInfo.switch1 + mInfo.switch2 + mInfo.switch3 + mInfo.switch4;  
+                        if (mInfo.header === 6 && mInfo.checksum === check) {
+                           delete mInfo.header;
+                           delete mInfo.checksum;
+                        } else {
+                            mInfo = null;
+                        }
+                    } else if (mExtra.fport === 161) {
+                        if (mInfo.sign === 1 || mInfo.sign === 3) {
+                            mInfo.temperature = - mInfo.temperature;
+                        }
+                        delete mInfo.sign;
+                    } else if (mExtra.fport === 164) {
+                        if (mInfo.sign === 1 ) {
+                            mInfo.status = - mInfo.status;
+                        }
+                        delete mInfo.sign;
+                    } 
                     var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
                     // console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
                     msg.information=mInfo;
@@ -205,7 +204,12 @@ function getTypeData(data,mapObj) {
         var count = keys.length;
         for(var i =0;i<count;i++){
             //console.log( keys[i]+' : '+ obj[keys[i]]);
-            info[keys[i]] = getIntData(obj[keys[i]],data);
+            let parseData = getIntData(obj[keys[i]],data);
+            if(parseData !== null) {
+                info[keys[i]] = parseData;
+            } else {
+                return null;
+            }
             // console.log(keys[i] + ' : ' + info[keys[i]]);
         }
         return info;
@@ -219,6 +223,9 @@ function getIntData(arrRange,initData){
     var start = arrRange[0];
     var end = arrRange[1];
     var subStr = initData.substring(start,end);
+    if (subStr === '') {
+        return null;
+    }
     var diff = arrRange[2];
     if (diff === 'epc') {
         /*parseEPC(subStr, null, function(err, parsed){
@@ -413,7 +420,7 @@ function getDataJson(msg, checkData) {
     }
 }
 
-function checkAndParseMessage (message, callback) {
+function checkAndParseMessage (isNeedFiltet, message, callback) {
     var obj = getMsgJson(message);
     var json = {"macAddr": obj.macAddr, "extra.frameCnt": obj.frameCnt};
     //fun2 getProperties 不需要 fun1 getHistory 的資料
@@ -435,10 +442,12 @@ function checkAndParseMessage (message, callback) {
             return callback(errs);
         }
 
-        if (results[0].length === 0) {
+        if (results[0].length === 0 || !isNeedFiltet) {
+            if(isNeedFiltet) {
+                console.log(getCurrentTime() + ' No same data, return publish message :\n' + JSON.stringify(results[1]));
+            }
             //If no same data
             if(results && results.length >1) {
-                console.log(getCurrentTime() + ' No same data, return publish message :\n' + JSON.stringify(results[1]));
                 //Save message to mongo database
                 saveMsgToDB(results[1]);
                 return callback(null, results[1]);

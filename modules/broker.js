@@ -19,7 +19,7 @@ function init () {
     deviceList.forEach( function(device){
       try {
         let mac = device.device_mac;
-        console.log('mac : ' + mac);
+        // console.log('mac : ' + mac);
         checkDevice.push(mac);
       } catch (error) {
         console.log('???? checkNewDevice err: ' + err);
@@ -61,6 +61,7 @@ console.log('Broker mysql host : ' + dbHost);
 console.log('Broker mongoDB : ' +  mongoDB);
 console.log('debug : ' + debug);
 console.log('isAuth : ' + isAuth);
+console.log('isNeedFiltet : ' + config.isNeedFiltet);
 console.log('MQTT BROKER--------------------------------');
 
 // Accepts the connection if the username and password are valid
@@ -122,6 +123,7 @@ var authorizeForward = function(client, packet, callback) {
     // console.log('payload : ' +  packet.payload.toString('utf8'));
     // example topic : GIOT-GW/DL/00001C497BC0C094
     var arr = packet.topic.split('/');
+    var isNeedFiltet = config.isNeedFiltet;
     // Verify
     if (arr.length !== 3) {
       return;
@@ -132,27 +134,36 @@ var authorizeForward = function(client, packet, callback) {
       init();
       callback(null, false);
       return;
+    } else if (msg === 'filter') {
+      isNeedFiltet = true;
     }
     console.log('message type : ' + typeof(msg));
     if (arr[1].includes('UL')  ) { // From Lora message
-      if (checkMacData === undefined || checkMacData === null) {
-          checkMacData = {};
-      }
-      var obj = util.getDataJson(msg, checkMacData);
+      if (isNeedFiltet) {
+        console.log('#### Has frameCount filter');
+        if (checkMacData === undefined || checkMacData === null) {
+            checkMacData = {};
+        }
+        var obj = util.getDataJson(msg, checkMacData);
 
-      if (obj === null) {
-        //Repeat data to drop
-        console.log('Check by memory data : Has same data');
-        callback(null, true);
+        if (obj === null) {
+          //Repeat data to drop
+          console.log('Check by memory data : Has same data');
+          callback(null, true);
+          return;
+        } else {
+          //No repeat to update check data
+          checkMacData[obj.macAddr] = obj;
+        }
         return;
+        console.log('check data by database ');
       } else {
-        //No repeat to update check data
-        checkMacData[obj.macAddr] = obj;
+        // console.log('#### Bypass frameCount filter');
       }
-      console.log('check data by database ');
+      
       // Check data by data json in database
       // Avoid double data in same time
-      util.checkAndParseMessage(msg,function(err, message){
+      util.checkAndParseMessage(isNeedFiltet, msg, function(err, message){
 
         if(err) {
           if(debug) {
@@ -172,7 +183,6 @@ var authorizeForward = function(client, packet, callback) {
               addNewDevice (message);
               console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
             }
-            var isSendNotify = true;
             if (message.extra.fport === 160 || message.extra.fport === 163) {
               if (message.extra.fport === 163) {
                 let lastStatus = checkNotifyData[message.macAddr];
