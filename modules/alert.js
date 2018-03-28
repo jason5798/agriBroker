@@ -23,11 +23,11 @@ function sendAlert (msg) {
         var ok = ch.assertExchange(ex, 'direct', {durable: true})
         var description = '';
         if ( msg.extra.fport===163) {
-            if (msg.information.status === 1) {
+            if (msg.information.status === 0) {
                 description = '手環'+ msg.macAddr + '有戴好'; 
             } else {
                 description = '手環'+ msg.macAddr + '沒戴好'; 
-            }
+            }c
         } if ( msg.extra.fport === 160) {
             if (msg.information.epc === 'e2000015250e00380790c7b0') {
                 description = '固資'+ msg.information.epc + "感應"; 

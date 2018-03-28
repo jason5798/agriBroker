@@ -4,6 +4,9 @@ var util = require('./util.js');
 var mysqlTool = require('./mysqlTool.js');
 var mongoMap = require('./mongoMap.js');
 var alert = require('./alert.js');
+var async  = require('async');
+var axios = require('axios');
+var config = require('../config');
 //var amqpAlert = require('./amqpAlert');
 
 var debug = util.isDebug();
@@ -11,6 +14,7 @@ var isAuth = util.isAuth();
 var checkMacData = {};
 var checkNotifyData = {};
 var checkDevice = [];
+var tokenInfo = {};
 
 function init () {
   var sql = 'SELECT * FROM cloudb.api_device_info WHERE 1';
@@ -61,7 +65,7 @@ console.log('Broker mysql host : ' + dbHost);
 console.log('Broker mongoDB : ' +  mongoDB);
 console.log('debug : ' + debug);
 console.log('isAuth : ' + isAuth);
-console.log('isNeedFiltet : ' + config.isNeedFiltet);
+console.log('isNeedFiltet : ' + config.isNeedFilter);
 console.log('MQTT BROKER--------------------------------');
 
 // Accepts the connection if the username and password are valid
@@ -123,7 +127,7 @@ var authorizeForward = function(client, packet, callback) {
     // console.log('payload : ' +  packet.payload.toString('utf8'));
     // example topic : GIOT-GW/DL/00001C497BC0C094
     var arr = packet.topic.split('/');
-    var isNeedFiltet = config.isNeedFiltet;
+    var isNeedFiltet = config.isNeedFilter;
     // Verify
     if (arr.length !== 3) {
       return;
@@ -183,6 +187,8 @@ var authorizeForward = function(client, packet, callback) {
               addNewDevice (message);
               console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
             }
+
+            //for send notify
             if (message.extra.fport === 160 || message.extra.fport === 163) {
               if (message.extra.fport === 163) {
                 let lastStatus = checkNotifyData[message.macAddr];
@@ -201,6 +207,10 @@ var authorizeForward = function(client, packet, callback) {
               if (isSendNotify === true) {
                 alert.sendAlert(message);
               }
+            }
+            //for send to cloudant
+            if (message.extra.fport === 164 && config.isSaveToCloudant ) {
+              sendMessage(message);
             }
           }
           callback(null, true);
@@ -278,7 +288,7 @@ function setup() {
 
 function addNewDevice (message) {
   var sql = "INSERT INTO `cloudb`.`api_device_info` ( `device_mac`, `device_name`, `device_status`, `device_type`, `device_share`, `device_active_time`, `device_bind_time`, `device_cp_id`, `device_user_id`, `createTime`, `createUser`) VALUES ( '" 
-            + message.macAddr +"', '" + message.macAddr +"', 2, 'L', 0, current_time(), current_time(), 1, 1, current_time(), 1)"
+            + message.macAddr +"', '" + message.macAddr +"', "+config.defaultStatus+", 'L', 0, current_time(), current_time(), 1, 1, current_time(), 1)"
   console.log('addNewDevice sql :\n' + sql);
   mysqlTool.insert(sql, function (err, result) {
     if (err) {
@@ -287,9 +297,159 @@ function addNewDevice (message) {
       console.log('addNewDevice + ' + message.maccAddr + ' is finished : ' + result);
       checkDevice.push(message.macAddr);
     }
-    
   });
 }
 
+function sendMessage(msg) {
+  var now = new Date();
+  var timestamp = now.getTime();
+  var isNeedToken = true;
+  if (tokenInfo && tokenInfo.token && tokenInfo.time) {
+    console.log('Check token time : ' + ( (tokenInfo.time - timestamp)/1000) + ' second');
+    if( ( (tokenInfo.time - timestamp)/1000) < 864000) {
+      isNeedToken = false;
+    }
+  } 
 
+  if (isNeedToken) {
+    async.waterfall([  
+      function(next){
+        toGetUserToken(function(err1, result1){
+              if (result1 !== null) {
+                var token = result1.authToken;
+                tokenInfo = {token: token, time: timestamp};
+                next(err1, result1);
+              } else {
+                console.log('??????? Unable get user token!');
+                return;
+              }
+          });
+      },
+      function(rst1, next){
+          //Seend message to bluemix include event and status
+          sendMsgToCloudant(msg, tokenInfo.token,function(err2, result2){
+              next(err2, result2);
+          });
+      }
+    ], function(err, rst){
+      if(err) {
+        console.log(err);
+      } else {
+        console.log('sendMessage to cloudant is finished'); 
+      } 
+    });
+  } else {
+    sendMsgToCloudant(msg, tokenInfo.token,function(err2, result2){
+      if(err) {
+        console.log(err);
+      } else {
+        console.log('sendMessage to cloudant is finished'); 
+      }
+    });
+  }
+}
 
+function toGetUserToken (callback) {
+  //var url = 'http://'+config.host+':' + config.hostPort + '/user' + config.baseurl+'login/gemtek';
+  var url = 'https://api.us.apiconnect.ibmcloud.com/ctosw5-cloud3/sb/user/v1/login/gemtek';
+  axios.post(url, {
+          acc: 'sysAdmin',
+          pwd: 'gemtek123',
+          type: 0
+  })
+  .then(function (response) {
+      console.log(response.data);
+      if (response.data.responseCode === '000') {
+          return callback(null,response.data);
+      } else {
+        return callback(response.data.responseMsg, null);
+      }
+  })
+  .catch(function (error) {
+      console.log(error);
+      return callback(error, null);
+  });
+}
+
+function sendMsgToCloudant(msg, token , callback) {
+  async.waterfall([  
+    function(next){
+      toAddEvent (msg, token, function(err1, result1){
+            next(err1, result1);
+        });
+    },
+    function(rst1, next){
+        //Seend message to bluemix include event and status
+        toUpdateStatus (msg, token, function(err2, result2){
+            next(err2, result2);
+        });
+    }
+  ], function(err, rst){
+      if(err) {
+        console.log(err);
+        return callback(err, null);
+      }
+      // console.log(rst);   // 收到的 rst = 上面的 result4
+      return callback(null, rst)
+  });
+}
+
+function toUpdateStatus (msg, token, callback) {
+  //var url = 'http://'+config.host+':' + config.hostPort + '/user' + config.baseurl+'login/gemtek';
+  var url = 'https://api.us.apiconnect.ibmcloud.com/ctosw5-cloud3/sb/device/v1/robotic';
+  var mac = msg.macAddr;
+  var status =  msg.information.status;
+  axios.put(url, {
+          d: mac,
+          rstatus: status,
+          token: token
+  })
+  .then(function (response) {
+      console.log(response.data);
+      if (response.data.responseCode === '000') {
+          return callback(null,response.data);
+      } else {
+        return callback(response.data.responseMsg, null);
+      }
+  })
+  .catch(function (error) {
+      console.log(error);
+      return callback(error, null);
+  });
+}
+
+function toAddEvent (msg, token, callback) {
+  //var url = 'http://'+config.host+':' + config.hostPort + '/user' + config.baseurl+'login/gemtek';
+  var now = new Date();
+  var qTime = now.getFullYear();
+  if( now.getMonth() < 10) {
+    qTime = qTime + '-' + '0' + (now.getMonth()+1);
+  } else {
+    qTime = qTime + '-' + now.getMonth();
+  }
+  if( now.getDate() < 10) {
+    qTime = qTime + '-' + '0' + now.getDate();
+  } else {
+    qTime = qTime + '-' + now.getDate();
+  }
+  var mac = msg.macAddr;
+  var status =  msg.information.status;
+  var url = 'https://api.us.apiconnect.ibmcloud.com/ctosw5-cloud3/sb/data/v1/event/RoboticArm/'+mac+'/status/'+qTime;
+  
+  axios.post(url, {
+          data: {status: status},
+          token: token
+  })
+  .then(function (response) {
+      console.log(response.data);
+      if (response.data.responseCode === '000') {
+          return callback(null,response.data);
+      } else {
+        return callback(response.data.responseMsg, null);
+      }
+  })
+  .catch(function (error) {
+      console.log(error);
+      return callback(error, null);
+  });
+}

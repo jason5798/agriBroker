@@ -46,5 +46,8 @@ config.qu_name_uldata = 'ul.jingdfh-test.wechat.que';
 config.routingKey = 'WeChat';
 //MQTT
 config.mqttPort = 1883;
-config.isNeedFiltet = false;
+config.isNeedFilter = false;
+config.isSaveToCloudant = true;
+//Add device info default status
+config.defaultStatus = 3;
 module.exports = config;
