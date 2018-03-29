@@ -6,7 +6,7 @@ var api = require('./routers/api.js'),
     map = require('./routers/map.js'),
     device = require('./routers/device.js');
 var config = require('./config');
-var broker = require('./modules/broker.js');
+var broker = require('./modules/broker.js').getServer();
 var async   = require('async'),
 	request = require('request');
 // Authentication module. 
@@ -61,3 +61,5 @@ var server = app.listen(config.port, function () {
 	console.log('Server listening at http://localhost:%s', port);
 	console.log('api url : http://localhost:8000/api/:table');
 });
+
+broker.attachHttpServer(server);
