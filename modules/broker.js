@@ -107,7 +107,21 @@ var Mqttsv = function(){
       console.log('*************** ' + util.getCurrentTime() + ' authorizeForward ***************');
       // console.log('user : ' +  client.user);
       // console.log('payload : ' +  packet.payload.toString('utf8'));
-      // example topic : GIOT-GW/DL/00001C497BC0C094
+      // example topic : GIOT-GW/DL/00001C497BC0C094  
+  }
+
+  // In this case the client authorized as alice can subscribe to /users/alice taking
+  // the username from the topic and verifing it is the same of the authorized user
+  var authorizeSubscribe = function(client, topic, callback) {
+    callback(null, client.user == topic.split('/')[1]);
+  }
+
+  //消息發布後觸發
+
+  server.on('published', function (packet, client) {
+      console.log('------------------------------------------------------------------------');
+      console.log(util.getCurrentTime() + ' Published topic: ', packet.topic);
+      console.log("payload:\n", packet.payload.toString());
       var arr = packet.topic.split('/');
       var isNeedFiltet = config.isNeedFilter;
       // Verify
@@ -135,7 +149,6 @@ var Mqttsv = function(){
           if (obj === null) {
             //Repeat data to drop
             console.log('Check by memory data : Has same data');
-            callback(null, true);
             return;
           } else {
             //No repeat to update check data
@@ -152,11 +165,7 @@ var Mqttsv = function(){
         util.checkAndParseMessage(isNeedFiltet, msg, function(err, message){
 
           if(err) {
-            if(debug) {
-              callback(null, true);
-            } else {
-              callback(null, false);
-            }
+              return;
           } else {
             if (message) {
               console.log(util.getCurrentTime() + ' *** Publish parse message and save');
@@ -169,9 +178,10 @@ var Mqttsv = function(){
                 addNewDevice (message);
                 console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
               }
-
+              
               //for send notify
               if (message.extra.fport === 160 || message.extra.fport === 163) {
+                var isSendNotify = false;
                 if (message.extra.fport === 163) {
                   let lastStatus = checkNotifyData[message.macAddr];
                   if (lastStatus !== undefined) {
@@ -186,7 +196,7 @@ var Mqttsv = function(){
                     checkNotifyData[message.macAddr] = message.information.status
                   }
                 }  
-                if (isSendNotify === true) {
+                if (isSendNotify === true && config.isWechartNotify) {
                   alert.sendAlert(message);
                 }
               }
@@ -195,27 +205,12 @@ var Mqttsv = function(){
                 sendMessage(message);
               }
             }
-            callback(null, true);
+            return;
           }
         });
       } else {
-        callback(null, true);
+        return;
       }
-      
-  }
-
-  // In this case the client authorized as alice can subscribe to /users/alice taking
-  // the username from the topic and verifing it is the same of the authorized user
-  var authorizeSubscribe = function(client, topic, callback) {
-    callback(null, client.user == topic.split('/')[1]);
-  }
-
-  //消息發布後觸發
-
-  server.on('published', function (packet, client) {
-      console.log('------------------------------------------------------------------------');
-      console.log(util.getCurrentTime() + ' Published topic: ', packet.topic);
-      console.log("payload:\n", packet.payload.toString());
   });
   //客戶端連接後觸發
   server.on('clientConnected', function(client) {
@@ -260,7 +255,7 @@ var Mqttsv = function(){
       console.log('*         check gw flow no excute       *');
       console.log('*****************************************');
     }
-    server.authorizeForward = authorizeForward;
+    // server.authorizeForward = authorizeForward;
     // server.authorizeSubscribe = authorizeSubscribe;
     console.log('Mosca server is up and running')
   }

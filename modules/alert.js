@@ -27,7 +27,7 @@ function sendAlert (msg) {
                 description = '手環'+ msg.macAddr + '有戴好'; 
             } else {
                 description = '手環'+ msg.macAddr + '沒戴好'; 
-            }c
+            }
         } if ( msg.extra.fport === 160) {
             if (msg.information.epc === 'e2000015250e00380790c7b0') {
                 description = '固資'+ msg.information.epc + "感應"; 

@@ -48,6 +48,8 @@ config.routingKey = 'WeChat';
 config.mqttPort = 1883;
 config.isNeedFilter = false;
 config.isSaveToCloudant = true;
+config.isWechartNotify = true;
+config.isLineNotify = false;
 //Add device info default status
 config.defaultStatus = 3;
 module.exports = config;
