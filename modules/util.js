@@ -70,11 +70,12 @@ function parseMsgd(obj, callback) {
     var mMac  = obj.macAddr;
     var timestamp = 0;
     var mRecv = new Date();
-    if (fport !== 162 || fport !== 164) {
-        timestamp = convertTime(obj.time);
-        mRecv = obj.time;
-    } else {
+    // 162 wifi switch, 164 robot no time in payload
+    if (fport === 162 || fport === 164) {
         timestamp = mRecv.getTime();
+    } else {
+        mRecv = new Date(obj.time);
+         timestamp = mRecv.getTime();
     }
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
@@ -115,7 +116,7 @@ function parseMsgd(obj, callback) {
                             mInfo = null;
                         }
                     } else if (mExtra.fport === 162) {
-                        var check = mInfo.header + mInfo.switch1 + mInfo.switch2 + mInfo.switch3 + mInfo.switch4;  
+                        var check = mInfo.header + mInfo.switch1 + mInfo.switch2 + mInfo.switch3 + mInfo.switch4;
                         if (mInfo.header === 6 && mInfo.checksum === check) {
                            delete mInfo.header;
                            delete mInfo.checksum;
@@ -132,7 +133,7 @@ function parseMsgd(obj, callback) {
                             mInfo.status = - mInfo.status;
                         }
                         delete mInfo.sign;
-                    } 
+                    }
                     var msg = {macAddr: mMac, data: mData, timestamp: timestamp, recv: mRecv, date: mDate, extra: mExtra};
                     // console.log('**** '+msg.date +' mac:'+msg.macAddr+' => data:'+msg.data+'\ninfo:'+JSON.stringify(mInfo));
                     msg.information=mInfo;
