@@ -71,11 +71,11 @@ function parseMsgd(obj, callback) {
     var timestamp = 0;
     var mRecv = new Date();
     // 162 wifi switch, 164 robot no time in payload
-    if (fport === 162 || fport === 164) {
+    if (fport !== 162 && fport !== 164) {
+        mRecv = getISODate(obj.time);
         timestamp = mRecv.getTime();
     } else {
-        mRecv = new Date(obj.time);
-         timestamp = mRecv.getTime();
+        timestamp = getISODate(dateStr);
     }
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
@@ -569,3 +569,23 @@ function parseSignHex(hex) {
     }
     return num;
 }
+
+function getISODate(dateStr) {
+    var d = new Date(dateStr);
+   
+    //console.log('d : ' + d.toISOString());
+    //console.log('offset : ' + d.getTimezoneOffset()/60 );
+   
+    d.setTime(d.getTime() + ( (-d.getTimezoneOffset()-(config.timezoneoffset*60) ) *60*1000));
+    //console.log('d + offset : ' + d.toISOString());
+    /*var utcDate = d.toISOString();
+    console.log('d utc : ' + utcDate);
+    return utcDate; */
+    return d;
+ }
+ 
+ function getISODate() {
+    var d = new Date();
+    d.setTime(d.getTime() + ( (-d.getTimezoneOffset()-(config.timezoneoffset*60) ) *60*1000));
+    return d;
+ }

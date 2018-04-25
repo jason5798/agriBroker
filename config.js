@@ -52,4 +52,6 @@ config.isWechartNotify = true;
 config.isLineNotify = false;
 //Add device info default status
 config.defaultStatus = 3;
+//Timezone offset
+config.timezoneoffset = 8;
 module.exports = config;
