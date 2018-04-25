@@ -72,10 +72,11 @@ function parseMsgd(obj, callback) {
     var mRecv = new Date();
     // 162 wifi switch, 164 robot no time in payload
     if (fport !== 162 && fport !== 164) {
-        mRecv = getISODate(obj.time);
+        // mRecv = new Date(obj.time);
+        mRcv = getMyDate(obj.time);
         timestamp = mRecv.getTime();
     } else {
-        timestamp = getISODate(dateStr);
+        timestamp = getISODate();
     }
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
@@ -91,6 +92,9 @@ function parseMsgd(obj, callback) {
                 'channel': obj.channel
             };
     }
+    console.log('recv :' + mRecv.toString);
+    console.log('date :' + mDate);
+
 
     //Parse data
     if(mExtra.fport){
@@ -569,23 +573,15 @@ function parseSignHex(hex) {
     }
     return num;
 }
-
-function getISODate(dateStr) {
-    var d = new Date(dateStr);
-   
-    //console.log('d : ' + d.toISOString());
-    //console.log('offset : ' + d.getTimezoneOffset()/60 );
-   
-    d.setTime(d.getTime() + ( (-d.getTimezoneOffset()-(config.timezoneoffset*60) ) *60*1000));
-    //console.log('d + offset : ' + d.toISOString());
-    /*var utcDate = d.toISOString();
-    console.log('d utc : ' + utcDate);
-    return utcDate; */
-    return d;
- }
  
  function getISODate() {
     var d = new Date();
-    d.setTime(d.getTime() + ( (-d.getTimezoneOffset()-(config.timezoneoffset*60) ) *60*1000));
+    d.setTime(d.getTime() + ( -d.getTimezoneOffset()*60*1000));
+    return d;
+ }
+
+ function getMyDate(dateStr) {
+    var d = new Date(dateStr);
+    d.setTime(d.getTime() + ( -d.getTimezoneOffset()*60*1000));
     return d;
  }

@@ -13,9 +13,9 @@ config.database = 'cloudb';
 config.dbHost = 'localhost';
 config.test_dbHost = '210.242.93.31';
 config.username = 'admin';
-config.password = 'gemtek1234';
-//config.username = 'root';
-//config.password = '12345678';
+config.password = 'gemtek12345';
+// config.username = 'root';
+// config.password = '12345678';
 config.table_prefix = 'api_';
 config.dbPort = 3306;
 //Key
@@ -52,6 +52,4 @@ config.isWechartNotify = true;
 config.isLineNotify = false;
 //Add device info default status
 config.defaultStatus = 3;
-//Timezone offset
-config.timezoneoffset = 8;
 module.exports = config;
