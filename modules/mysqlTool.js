@@ -6,10 +6,6 @@ var dbHost = config.dbHost;
 var sequelize = new Sequelize(config.database, config.username, config.password, {
     host: dbHost,
     dialect: 'mysql',
-    dialectOptions: {
-        socketPath: '/var/lib/mysql/mysql.sock' // 指定套接字文件路径
-        // socketPath: '/opt/redmine-3.4.5-0/mysql/tmp/mysql.sock' // bitnami路徑
-    },
     pool: {
         max: 10,
         min: 0,
@@ -130,4 +126,4 @@ function getGroup (roleId, callback) {
 
 
 
-
+    

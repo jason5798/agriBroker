@@ -1,10 +1,8 @@
 {
   "name": "agri_broker",
-  "version": "1.0.22",
+  "version": "1.0.21",
   "description": "Agri broker with message filter,parse and save",
-  "scripts": {
-    "start": "node brokerServer.js"
-  },
+  "main": "server.js",
   "dependencies": {
     "amqp": "^0.2.6",
     "amqplib": "^0.5.2",
