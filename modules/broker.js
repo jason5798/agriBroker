@@ -172,12 +172,12 @@ var Mqttsv = function(){
               packet.payload = JSON.stringify(message);
               //Jason add for check is new device or not? ----- start
               console.log('checkDevice.includes(message.macAddr) : ' + checkDevice.includes(message.macAddr));
-              if (!checkDevice.includes(message.macAddr)) {
+              /* if (!checkDevice.includes(message.macAddr)) {
                 console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
                 console.log(util.getCurrentTime() + ' Add new device ' + message.macAddr);
                 addNewDevice (message);
                 console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-              }
+              } */
               
               //for send notify
               if (message.extra.fport === 160 || message.extra.fport === 163) {
@@ -476,7 +476,7 @@ function toAddEvent (msg, token, callback) {
 }
 
 function init () {
-  var sql = 'SELECT * FROM cloudb.api_device_info WHERE 1';
+  var sql = 'SELECT * FROM cloudb.api_device_info WHERE 1=1';
   checkDevice = [];
   mysqlTool.query(sql, function(err, deviceList){
     deviceList.forEach( function(device){
