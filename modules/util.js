@@ -69,17 +69,23 @@ function parseMsgd(obj, callback) {
     var mData = obj.data;
     var mMac  = obj.macAddr;
     var timestamp = 0;
-    var mRecv = new Date();
+    var mRecv = null;;
     // 162 wifi switch, 164 robot no time in payload
     if (fport !== 162 && fport !== 164) {
         // mRecv = new Date(obj.time);
-        mRcv = getMyDate(obj.time);
-        timestamp = mRecv.getTime();
+        // mRecv = obj.time;
+        // var myMoment = moment(obj.time, "YYYY-MM-DDThh:mm:ss");
+        var utcMoment = moment.utc(obj.time);
+        mRecv = new Date( utcMoment.format("YYYY-MM-DDTHH:mm:ss") );
+        timestamp = utcMoment.valueOf();
     } else {
-        timestamp = getISODate();
+        var utcMoment = moment.utc();
+        mRecv = new Date( utcMoment.format("YYYY-MM-DDTHH:mm:ss") );
+        timestamp = utcMoment.valueOf();
     }
     var tMoment = (moment.unix(timestamp/1000)).tz(config.timezone);
     var mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
+    mRecv = obj.time;
 
     var mExtra = {'fport': fport};
     if (fport !== 162) {
@@ -92,7 +98,7 @@ function parseMsgd(obj, callback) {
                 'channel': obj.channel
             };
     }
-    console.log('recv :' + mRecv.toString);
+    console.log('recv :' + mRecv);
     console.log('date :' + mDate);
 
 
@@ -515,7 +521,7 @@ function checkFormData (req, checkArr) {
 }
 
 function getCurrentTime() {
-    var now = moment();
+    var now = moment.utc();
     return now.tz(config.timezone).format('YYYY/MM/DD HH:mm:ss');
 }
 
@@ -576,12 +582,6 @@ function parseSignHex(hex) {
  
  function getISODate() {
     var d = new Date();
-    d.setTime(d.getTime() + ( -d.getTimezoneOffset()*60*1000));
-    return d;
- }
-
- function getMyDate(dateStr) {
-    var d = new Date(dateStr);
     d.setTime(d.getTime() + ( -d.getTimezoneOffset()*60*1000));
     return d;
  }
